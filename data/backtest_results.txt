@@ -1,0 +1,6 @@
+Total Return: 0.172850
+Sharpe Ratio: 0.403949
+Max Drawdown: -0.235191
+Cointegrated (p < 0.05): True
+Observations: 756
+Trades/Entries: 30
