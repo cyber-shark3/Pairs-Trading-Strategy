@@ -1,3 +1,7 @@
+import matplotlib
+matplotlib.use("Agg")
+
+import os
 import matplotlib.pyplot as plt
 
 from src.data_loader import load_data
@@ -9,12 +13,19 @@ import config
 
 
 def main():
+    os.makedirs("data", exist_ok=True)
+
     data = load_data(
         config.ASSET_1,
         config.ASSET_2,
         config.START_DATE,
         config.END_DATE,
     )
+
+    if data.empty:
+        raise RuntimeError("No market data was downloaded.")
+
+    data.to_csv("data/raw_prices.csv")
 
     is_coint = test_cointegration(
         data, config.ASSET_1, config.ASSET_2
@@ -49,48 +60,52 @@ def main():
         hedge_ratios,
     )
 
+    results = data.copy()
+    results["hedge_ratio"] = hedge_ratios
+    results["signal"] = signals
+    results["strategy_return"] = strategy_rets
+    results["cumulative_return"] = cum_ret
+    results.to_csv("data/backtest_timeseries.csv")
+
+    metrics["Cointegrated (p < 0.05)"] = bool(is_coint)
+    metrics["Observations"] = len(data)
+    metrics["Trades/Entries"] = int((signals.diff().abs() > 0).sum())
+
+    with open("data/backtest_results.txt", "w", encoding="utf-8") as f:
+        for key, value in metrics.items():
+            if isinstance(value, float):
+                f.write(f"{key}: {value:.6f}\n")
+            else:
+                f.write(f"{key}: {value}\n")
+
     print("\n--- Backtest Results ---")
     for key, value in metrics.items():
-        print(f"{key}: {value:.4f}")
+        if isinstance(value, float):
+            print(f"{key}: {value:.6f}")
+        else:
+            print(f"{key}: {value}")
 
-    fig, axes = plt.subplots(
-        3, 1, figsize=(12, 14), sharex=True
-    )
+    fig, axes = plt.subplots(3, 1, figsize=(12, 14), sharex=True)
 
-    axes[0].plot(
-        data.index,
-        data[config.ASSET_1],
-        label=config.ASSET_1,
-    )
-    axes[0].plot(
-        data.index,
-        data[config.ASSET_2],
-        label=config.ASSET_2,
-    )
+    axes[0].plot(data.index, data[config.ASSET_1], label=config.ASSET_1)
+    axes[0].plot(data.index, data[config.ASSET_2], label=config.ASSET_2)
     axes[0].set_title("Asset Prices")
     axes[0].legend()
     axes[0].grid(True)
 
-    axes[1].plot(
-        data.index,
-        hedge_ratios,
-        label="Dynamic Hedge Ratio",
-    )
+    axes[1].plot(data.index, hedge_ratios, label="Dynamic Hedge Ratio")
     axes[1].set_title("Kalman Filter Dynamic Hedge Ratio")
     axes[1].legend()
     axes[1].grid(True)
 
-    axes[2].plot(
-        cum_ret.index,
-        cum_ret,
-        label="Strategy Cumulative Returns",
-    )
+    axes[2].plot(cum_ret.index, cum_ret, label="Strategy Cumulative Returns")
     axes[2].set_title("Cumulative Returns")
     axes[2].legend()
     axes[2].grid(True)
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig("data/performance.png", dpi=150)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
