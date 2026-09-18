@@ -11,7 +11,7 @@ def calculate_dynamic_hedge_ratio(asset1_prices, asset2_prices):
 
     kf = KalmanFilter(
         n_dim_obs=1,
-        n_dim_states=2,
+        n_dim_state=2,
         initial_state_mean=[0, 0],
         initial_state_covariance=np.eye(2) * 100,
         transition_matrices=np.eye(2),
